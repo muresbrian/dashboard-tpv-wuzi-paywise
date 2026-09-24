@@ -139,8 +139,9 @@
           <span class="text-xs font-bold uppercase tracking-wider text-slate-500 mr-1 flex items-center gap-1">
             <i data-lucide="calendar" class="w-3.5 h-3.5"></i> Cortes Rápidos:
           </span>
-          <button onclick="applyPreset('corte_sep_22')" id="preset-corte_sep_22" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-100 text-slate-700 hover:bg-brand-50 hover:text-brand-600 transition chip-active">
-            Corte Sep (1 al 22)
+          <button onclick="applyPreset('corte_mes_hasta_hoy')" id="preset-corte_mes_hasta_hoy" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-100 text-slate-700 hover:bg-brand-50 hover:text-brand-600 transition chip-active flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="preset-label-corte-hoy">Corte del Mes hasta Hoy</span>
           </button>
           <button onclick="applyPreset('corte_1_17')" id="preset-corte_1_17" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-100 text-slate-700 hover:bg-brand-50 hover:text-brand-600 transition">
             Corte 1 al 17 (Ago vs Sep)
@@ -368,11 +369,28 @@
     });
 
     function initDashboard() {
-      curActualStart = rawData.default_start_date || "2026-09-01";
-      curActualEnd = rawData.default_end_date || "2026-09-22";
+      const maxDateStr = rawData.max_date || "2026-09-22";
+      const [y, m, d] = maxDateStr.split('-');
+      const monthNamesShort = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      const mName = monthNamesShort[parseInt(m, 10) - 1] || m;
+
+      curActualStart = `${y}-${m}-01`;
+      curActualEnd = maxDateStr;
       
       document.getElementById('date-start').value = curActualStart;
       document.getElementById('date-end').value = curActualEnd;
+
+      // Dynamic label for preset button: Corte del Mes hasta Hoy
+      const lbl = document.getElementById('preset-label-corte-hoy');
+      if (lbl) {
+        lbl.textContent = `Corte del Mes hasta Hoy (1 al ${parseInt(d, 10)} ${mName})`;
+      }
+
+      // Dynamic header period badge
+      const headerTag = document.getElementById('header-period-tag');
+      if (headerTag) {
+        headerTag.textContent = `Corte al ${parseInt(d, 10)} de ${mName} ${y}`;
+      }
 
       computeBaseDates();
 
@@ -450,16 +468,34 @@
       const activeEl = document.getElementById('preset-' + presetKey);
       if (activeEl) activeEl.classList.add('chip-active');
 
-      if (presetKey === 'corte_sep_22') {
-        curActualStart = "2026-09-01";
-        curActualEnd = "2026-09-22";
-        curBaseStart = "2026-08-01";
-        curBaseEnd = "2026-08-22";
+      const maxDateStr = rawData.max_date || "2026-09-22";
+      const [maxYear, maxMonth, maxDay] = maxDateStr.split('-');
+
+      if (presetKey === 'corte_mes_hasta_hoy' || presetKey === 'corte_sep_22' || presetKey === 'corte_actual') {
+        curActualStart = `${maxYear}-${maxMonth}-01`;
+        curActualEnd = maxDateStr;
+        
+        // Mismo periodo del mes anterior
+        const dStart = new Date(curActualStart + "T00:00:00");
+        const dEnd = new Date(curActualEnd + "T00:00:00");
+        const bStart = new Date(dStart);
+        bStart.setMonth(bStart.getMonth() - 1);
+        const bEnd = new Date(dEnd);
+        bEnd.setMonth(bEnd.getMonth() - 1);
+        curBaseStart = formatDateISO(bStart);
+        curBaseEnd = formatDateISO(bEnd);
       } else if (presetKey === 'corte_1_17') {
-        curActualStart = "2026-09-01";
-        curActualEnd = "2026-09-17";
-        curBaseStart = "2026-08-01";
-        curBaseEnd = "2026-08-17";
+        curActualStart = `${maxYear}-${maxMonth}-01`;
+        curActualEnd = `${maxYear}-${maxMonth}-17`;
+        
+        const dStart = new Date(curActualStart + "T00:00:00");
+        const dEnd = new Date(curActualEnd + "T00:00:00");
+        const bStart = new Date(dStart);
+        bStart.setMonth(bStart.getMonth() - 1);
+        const bEnd = new Date(dEnd);
+        bEnd.setMonth(bEnd.getMonth() - 1);
+        curBaseStart = formatDateISO(bStart);
+        curBaseEnd = formatDateISO(bEnd);
       } else if (presetKey === 'mes_ago') {
         curActualStart = "2026-08-01";
         curActualEnd = "2026-08-31";
@@ -472,9 +508,9 @@
         curBaseEnd = "2026-08-31";
       } else if (presetKey === 'todo_2026') {
         curActualStart = "2026-01-01";
-        curActualEnd = "2026-09-22";
+        curActualEnd = maxDateStr;
         curBaseStart = "2025-01-01";
-        curBaseEnd = "2025-09-22";
+        curBaseEnd = maxDateStr.replace(maxYear, String(parseInt(maxYear, 10) - 1));
       }
 
       document.getElementById('date-start').value = curActualStart;
